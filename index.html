@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ReverseDay Planner：從截止日反向規劃今天，計算最後安全開始日、今日最低進度、風險等級與倒推時間表。" />
+  <title>ReverseDay Planner</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --surface:#ffffff;
+      --surface-2:#fafafa;
+      --text:#171923;
+      --muted:#68707d;
+      --line:#e6e8ee;
+      --primary:#191c2b;
+      --primary-soft:#eef0ff;
+      --good-bg:#edfdf5;
+      --good-text:#166534;
+      --warn-bg:#fff8e8;
+      --warn-text:#92400e;
+      --bad-bg:#fff0f2;
+      --bad-text:#9f1239;
+      --shadow:0 14px 40px rgba(27,31,45,.07);
+      --radius-xl:24px;
+      --radius-lg:18px;
+      --radius-md:13px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(125,135,255,.10), transparent 26rem),
+        radial-gradient(circle at 100% 15%, rgba(127,230,205,.10), transparent 28rem),
+        var(--bg);
+    }
+
+    button,input{font:inherit}
+
+    .page{
+      width:min(1180px,92%);
+      margin:0 auto;
+      padding:38px 0 64px;
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      padding:28px 30px;
+      border:1px solid rgba(230,232,238,.9);
+      border-radius:var(--radius-xl);
+      background:rgba(255,255,255,.82);
+      backdrop-filter:blur(8px);
+      box-shadow:var(--shadow);
+      margin-bottom:22px;
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      width:220px;height:220px;
+      right:-80px;top:-100px;
+      border-radius:50%;
+      background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(34,211,238,.12));
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      gap:7px;
+      align-items:center;
+      padding:7px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      color:var(--muted);
+      background:#fff;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.05em;
+      margin-bottom:13px;
+    }
+
+    h1{
+      margin:0;
+      font-size:clamp(32px,5vw,54px);
+      line-height:1.05;
+      letter-spacing:-.045em;
+    }
+
+    .hero p{
+      max-width:780px;
+      margin:13px 0 0;
+      color:var(--muted);
+      font-size:16px;
+      line-height:1.78;
+    }
+
+    .hero-note{
+      margin-top:17px;
+      display:flex;
+      gap:9px;
+      flex-wrap:wrap;
+    }
+
+    .mini-tag{
+      padding:7px 10px;
+      border-radius:999px;
+      background:var(--primary-soft);
+      color:#42476a;
+      font-size:12px;
+      font-weight:800;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns:400px 1fr;
+      gap:22px;
+      align-items:start;
+    }
+
+    .card{
+      border:1px solid var(--line);
+      border-radius:var(--radius-xl);
+      background:rgba(255,255,255,.94);
+      box-shadow:var(--shadow);
+    }
+
+    .settings{
+      position:sticky;
+      top:18px;
+      padding:22px;
+    }
+
+    .card-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:19px;
+    }
+
+    .card-title h2,.card-title h3{margin:0}
+    .card-title h2{font-size:20px}
+    .card-title h3{font-size:17px}
+    .helper{color:var(--muted);font-size:12px}
+
+    .field{margin-bottom:15px}
+    label{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:7px;
+      font-size:13px;
+      font-weight:850;
+    }
+
+    .label-note{
+      font-size:11px;
+      color:var(--muted);
+      font-weight:600;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    input[type="number"]{
+      width:100%;
+      padding:12px 13px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+      color:var(--text);
+      transition:.18s ease;
+    }
+
+    input:focus{
+      outline:none;
+      border-color:#aab0ff;
+      box-shadow:0 0 0 4px rgba(99,102,241,.10);
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .range-wrap{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:12px;
+      align-items:center;
+    }
+
+    input[type="range"]{
+      accent-color:#575ce5;
+      width:100%;
+    }
+
+    .pill{
+      min-width:60px;
+      padding:6px 9px;
+      text-align:center;
+      border-radius:999px;
+      background:var(--primary-soft);
+      color:#3f4370;
+      font-weight:900;
+      font-size:13px;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:9px;
+      margin-top:5px;
+    }
+
+    button{
+      border:0;
+      border-radius:12px;
+      padding:12px 14px;
+      cursor:pointer;
+      font-weight:850;
+      transition:transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+
+    button:hover{
+      transform:translateY(-1px);
+      box-shadow:0 8px 18px rgba(30,35,55,.08);
+    }
+
+    button:active{transform:translateY(0)}
+
+    .primary{
+      width:100%;
+      margin-top:10px;
+      color:#fff;
+      background:linear-gradient(135deg,#171923,#303553);
+    }
+
+    .secondary{
+      background:#f2f3f7;
+      color:var(--text);
+    }
+
+    .ghost{
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--text);
+    }
+
+    .error{
+      display:none;
+      margin-top:12px;
+      padding:11px 13px;
+      border-radius:12px;
+      color:var(--bad-text);
+      background:var(--bad-bg);
+      font-size:13px;
+      line-height:1.6;
+    }
+
+    .small-note{
+      margin:14px 0 0;
+      color:var(--muted);
+      font-size:11.5px;
+      line-height:1.65;
+    }
+
+    .content{
+      display:grid;
+      gap:16px;
+    }
+
+    .panel{padding:20px}
+
+    .empty{
+      min-height:190px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      color:var(--muted);
+      line-height:1.75;
+      padding:20px;
+    }
+
+    .empty .icon{
+      width:46px;height:46px;
+      display:grid;place-items:center;
+      margin:0 auto 10px;
+      border-radius:15px;
+      background:var(--primary-soft);
+      font-size:21px;
+    }
+
+    .summary-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:14px;
+      margin-bottom:14px;
+    }
+
+    .summary-head h2{
+      margin:0 0 5px;
+      font-size:22px;
+      letter-spacing:-.02em;
+    }
+
+    .summary-head p{margin:0;color:var(--muted);font-size:13px}
+
+    .status-badge{
+      flex:0 0 auto;
+      padding:8px 11px;
+      border-radius:999px;
+      font-weight:900;
+      font-size:13px;
+      background:var(--primary-soft);
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+    }
+
+    .stat{
+      min-height:112px;
+      padding:15px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:linear-gradient(180deg,#fff,#fcfcfd);
+    }
+
+    .stat .label{
+      color:var(--muted);
+      font-size:11.5px;
+      font-weight:850;
+      margin-bottom:10px;
+    }
+
+    .stat .value{
+      font-size:25px;
+      line-height:1.05;
+      font-weight:950;
+      letter-spacing:-.035em;
+    }
+
+    .stat .meta{
+      margin-top:7px;
+      color:var(--muted);
+      font-size:11.5px;
+      line-height:1.45;
+    }
+
+    .risk-box{
+      margin-top:12px;
+      border-radius:16px;
+      padding:15px 16px;
+      border:1px solid transparent;
+      line-height:1.65;
+    }
+
+    .risk-box.low{background:var(--good-bg);color:var(--good-text)}
+    .risk-box.mid{background:var(--warn-bg);color:var(--warn-text)}
+    .risk-box.high{background:var(--bad-bg);color:var(--bad-text)}
+
+    .risk-box strong{
+      display:block;
+      margin-bottom:4px;
+      font-size:17px;
+    }
+
+    .bar{
+      height:9px;
+      margin-top:12px;
+      background:rgba(255,255,255,.65);
+      border-radius:999px;
+      overflow:hidden;
+    }
+
+    .bar > div{
+      height:100%;
+      width:0;
+      border-radius:inherit;
+      background:currentColor;
+      opacity:.7;
+      transition:width .3s ease;
+    }
+
+    .timeline{
+      display:grid;
+      gap:10px;
+    }
+
+    .timeline-item{
+      position:relative;
+      display:grid;
+      grid-template-columns:110px 1fr;
+      gap:13px;
+      align-items:center;
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:13px 14px 13px 17px;
+      background:#fff;
+    }
+
+    .timeline-item::before{
+      content:"";
+      position:absolute;
+      left:0;top:11px;bottom:11px;
+      width:4px;
+      border-radius:0 4px 4px 0;
+      background:#c9ccff;
+    }
+
+    .timeline-date{font-weight:900;font-size:13px}
+    .timeline-label{color:#343846;font-size:14px}
+
+    .sim-grid{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:15px;
+      align-items:center;
+    }
+
+    .sim-copy h3{margin:0 0 6px;font-size:17px}
+    .sim-copy p{margin:0;color:var(--muted);line-height:1.65;font-size:13px}
+
+    .sim-actions{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      gap:8px;
+    }
+
+    .compare{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .compare-card{
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:13px;
+      background:var(--surface-2);
+    }
+
+    .compare-card .c-label{
+      color:var(--muted);
+      font-size:11.5px;
+      font-weight:800;
+      margin-bottom:5px;
+    }
+
+    .compare-card .c-value{
+      font-weight:900;
+      font-size:16px;
+    }
+
+    .footer{
+      text-align:center;
+      color:var(--muted);
+      font-size:11.5px;
+      margin-top:20px;
+      line-height:1.65;
+    }
+
+    .hide{display:none !important}
+
+    @media (max-width: 980px){
+      .layout{grid-template-columns:1fr}
+      .settings{position:static}
+      .stats{grid-template-columns:1fr 1fr}
+    }
+
+    @media (max-width: 640px){
+      .page{padding-top:18px}
+      .hero{padding:22px}
+      .two-col,.actions,.stats,.compare{grid-template-columns:1fr}
+      .timeline-item{grid-template-columns:1fr}
+      .sim-grid{grid-template-columns:1fr}
+      .sim-actions{justify-content:flex-start}
+      .summary-head{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <span class="eyebrow">⏳ Vibe Coding Web App</span>
+      <h1>ReverseDay Planner</h1>
+      <p>一般行事曆告訴你「哪一天要交」，ReverseDay Planner 則從截止日往回計算：最晚什麼時候要開始、今天最低要做到多少，以及目前進度是否安全。</p>
+      <div class="hero-note">
+        <span class="mini-tag">Last Safe Day</span>
+        <span class="mini-tag">Today Minimum</span>
+        <span class="mini-tag">Risk Level</span>
+        <span class="mini-tag">Delay Simulator</span>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="card settings">
+        <div class="card-title">
+          <h2>任務設定</h2>
+          <span class="helper">輸入後即可計算</span>
+        </div>
+
+        <div class="field">
+          <label for="task">任務名稱</label>
+          <input id="task" type="text" placeholder="例如：完成研究報告" />
+        </div>
+
+        <div class="field">
+          <label for="deadline">截止日期與時間</label>
+          <input id="deadline" type="datetime-local" />
+        </div>
+
+        <div class="field">
+          <label for="progress">目前完成進度</label>
+          <div class="range-wrap">
+            <input id="progress" type="range" min="0" max="100" value="20" />
+            <span class="pill" id="progressValue">20%</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="hours">
+            剩餘工作量（小時）
+            <span class="label-note">未完成部分</span>
+          </label>
+          <input id="hours" type="number" min="0.5" step="0.5" placeholder="例如：16" />
+        </div>
+
+        <div class="two-col">
+          <div class="field">
+            <label for="weekday">平日可用</label>
+            <input id="weekday" type="number" min="0" step="0.5" value="2" />
+          </div>
+          <div class="field">
+            <label for="weekend">週末可用</label>
+            <input id="weekend" type="number" min="0" step="0.5" value="5" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="dailyCap">
+            每日工作上限（小時）
+            <span class="label-note">避免排太滿</span>
+          </label>
+          <input id="dailyCap" type="number" min="0.5" step="0.5" value="6" />
+        </div>
+
+        <div class="actions">
+          <button class="secondary" id="sampleBtn">載入範例</button>
+          <button class="ghost" id="resetBtn">重新設定</button>
+        </div>
+        <button class="primary" id="calcBtn">開始倒推</button>
+
+        <div class="error" id="errorBox"></div>
+        <p class="small-note">計算為規劃參考，會依你輸入的工作量與可用時間估算。若實際效率不同，可重新輸入最新狀況再計算。</p>
+      </aside>
+
+      <section class="content">
+        <div class="card panel">
+          <div id="emptyState" class="empty">
+            <div>
+              <div class="icon">↩</div>
+              <strong>還沒有分析結果</strong>
+              <div>你可以先按「載入範例」，再按「開始倒推」快速體驗整個流程。</div>
+            </div>
+          </div>
+
+          <div id="resultBlock" class="hide">
+            <div class="summary-head">
+              <div>
+                <h2 id="taskTitle">任務分析</h2>
+                <p id="taskSubtitle">—</p>
+              </div>
+              <div class="status-badge" id="statusBadge">—</div>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <div class="label">距離截止</div>
+                <div class="value" id="daysLeft">—</div>
+                <div class="meta">從現在到截止日</div>
+              </div>
+              <div class="stat">
+                <div class="label">剩餘可用工時</div>
+                <div class="value" id="capacity">—</div>
+                <div class="meta">已套用每日上限</div>
+              </div>
+              <div class="stat">
+                <div class="label">Last Safe Day</div>
+                <div class="value" id="safeDay">—</div>
+                <div class="meta">最晚建議開始日</div>
+              </div>
+              <div class="stat">
+                <div class="label">Today Minimum</div>
+                <div class="value" id="todayMin">—</div>
+                <div class="meta">今天最低建議投入</div>
+              </div>
+            </div>
+
+            <div class="risk-box" id="riskBox">
+              <strong id="riskLevel">—</strong>
+              <span id="riskReason"></span>
+              <div class="bar"><div id="riskFill"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card panel hide" id="timelineCard">
+          <div class="card-title">
+            <h3>Reverse Timeline｜倒推時間表</h3>
+            <span class="helper" id="timelineMeta">—</span>
+          </div>
+          <div class="timeline" id="timeline"></div>
+        </div>
+
+        <div class="card panel hide" id="simCard">
+          <div class="sim-grid">
+            <div class="sim-copy">
+              <h3>Delay Simulator｜延遲模擬</h3>
+              <p id="simText">模擬今天沒有完成原訂工作後，看看可用容量與風險是否改變。</p>
+            </div>
+            <div class="sim-actions">
+              <button class="secondary" data-delay="1">少做 1 小時</button>
+              <button class="secondary" data-delay="2">少做 2 小時</button>
+              <button class="ghost" id="simReset">恢復</button>
+            </div>
+          </div>
+
+          <div class="compare hide" id="compareBlock">
+            <div class="compare-card">
+              <div class="c-label">原本 Today Minimum</div>
+              <div class="c-value" id="baseMinimum">—</div>
+            </div>
+            <div class="compare-card">
+              <div class="c-label">延遲後 Today Minimum</div>
+              <div class="c-value" id="delayedMinimum">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <div class="footer">
+      ReverseDay Planner · Single-file HTML Web App · Designed through iterative Vibe Coding
+    </div>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    const appState = {
+      input: null,
+      baseResult: null,
+      activeDelay: 0
+    };
+
+    $('progress').addEventListener('input', () => {
+      $('progressValue').textContent = `${$('progress').value}%`;
+    });
+
+    function pad(n){ return String(n).padStart(2,'0'); }
+
+    function toLocalInputValue(date){
+      return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function dayStart(date){
+      const d = new Date(date);
+      d.setHours(0,0,0,0);
+      return d;
+    }
+
+    function dateLabel(date){
+      return new Intl.DateTimeFormat('zh-TW',{
+        month:'2-digit',
+        day:'2-digit'
+      }).format(date);
+    }
+
+    function dateRangeLabel(a,b){
+      const x=dateLabel(a), y=dateLabel(b);
+      return x===y ? x : `${x}～${y}`;
+    }
+
+    function isWeekend(date){
+      const day=date.getDay();
+      return day===0 || day===6;
+    }
+
+    function effectiveDailyHours(date, weekday, weekend, cap){
+      const raw = isWeekend(date) ? weekend : weekday;
+      return Math.min(raw, cap);
+    }
+
+    function dateList(start,end){
+      const list=[];
+      const cur=dayStart(start);
+      const last=dayStart(end);
+      while(cur<=last){
+        list.push(new Date(cur));
+        cur.setDate(cur.getDate()+1);
+      }
+      return list;
+    }
+
+    function totalCapacity(start,end,weekday,weekend,cap){
+      return dateList(start,end).reduce(
+        (sum,d)=>sum+effectiveDailyHours(d,weekday,weekend,cap),0
+      );
+    }
+
+    function lastSafeDay(deadline, remainingHours, weekday, weekend, cap){
+      let need=remainingHours;
+      const cur=dayStart(deadline);
+      let guard=0;
+
+      while(need>0 && guard<3660){
+        need-=effectiveDailyHours(cur,weekday,weekend,cap);
+        if(need>0) cur.setDate(cur.getDate()-1);
+        guard++;
+      }
+      return new Date(cur);
+    }
+
+    function riskFor(remainingHours, capacity){
+      const ratio = capacity>0 ? remainingHours/capacity : Infinity;
+
+      if(remainingHours>capacity){
+        return {
+          key:'high',
+          level:'🔴 高風險',
+          ratio,
+          reason:`目前估計可用 ${capacity.toFixed(1)} 小時，但仍需要 ${remainingHours.toFixed(1)} 小時。依照現有條件可能無法準時完成，建議增加可用時間、提早開始或縮小工作範圍。`
+        };
+      }
+
+      if(ratio>=0.70){
+        return {
+          key:'mid',
+          level:'🟡 中風險',
+          ratio,
+          reason:`約需使用 ${(ratio*100).toFixed(0)}% 的可用時間，緩衝較少。建議維持穩定進度，並保留最後修改與突發狀況的時間。`
+        };
+      }
+
+      return {
+        key:'low',
+        level:'🟢 低風險',
+        ratio,
+        reason:`約需使用 ${(ratio*100).toFixed(0)}% 的可用時間，目前仍有一定緩衝。建議照計畫執行並持續更新實際進度。`
+      };
+    }
+
+    function minimumToday(now, remainingHours, capacity, weekday, weekend, cap){
+      const todayAvail = effectiveDailyHours(now,weekday,weekend,cap);
+      if(capacity<=0) return 0;
+      return Math.min(todayAvail, todayAvail*(remainingHours/capacity));
+    }
+
+    function buildTimeline(start,deadline){
+      const labels=[
+        '啟動與資料整理',
+        '主要執行',
+        '完成核心內容',
+        '修改與檢查',
+        '緩衝與提交'
+      ];
+
+      const dates=dateList(start,deadline);
+      if(!dates.length) return [];
+
+      return labels.map((label,i)=>{
+        const sIdx=Math.floor(i*dates.length/labels.length);
+        const eIdx=Math.max(sIdx,Math.floor((i+1)*dates.length/labels.length)-1);
+        return {
+          label,
+          start:dates[Math.min(sIdx,dates.length-1)],
+          end:dates[Math.min(eIdx,dates.length-1)]
+        };
+      });
+    }
+
+    function readInputs(){
+      const task=$('task').value.trim() || '未命名任務';
+      const deadlineRaw=$('deadline').value;
+      const progress=Number($('progress').value);
+      const remaining=Number($('hours').value);
+      const weekday=Number($('weekday').value);
+      const weekend=Number($('weekend').value);
+      const cap=Number($('dailyCap').value);
+      const now=new Date();
+
+      if(!deadlineRaw) throw new Error('請先選擇截止日期與時間。');
+
+      const deadline=new Date(deadlineRaw);
+
+      if(deadline<=now) throw new Error('截止日期必須晚於現在。');
+      if(!Number.isFinite(remaining) || remaining<=0) throw new Error('請輸入大於 0 的剩餘工作量。');
+      if(!Number.isFinite(weekday) || weekday<0) throw new Error('平日可用時間不可小於 0。');
+      if(!Number.isFinite(weekend) || weekend<0) throw new Error('週末可用時間不可小於 0。');
+      if(weekday===0 && weekend===0) throw new Error('平日與週末可用時間至少要有一項大於 0。');
+      if(!Number.isFinite(cap) || cap<=0) throw new Error('每日工作上限必須大於 0。');
+
+      return {task,deadline,progress,remaining,weekday,weekend,cap,now};
+    }
+
+    function compute(input, lostTodayHours=0){
+      const baseCapacity = totalCapacity(input.now,input.deadline,input.weekday,input.weekend,input.cap);
+
+      // 延遲模擬：今天少做 X 小時，視為這些時間已經流失，因此總可用容量下降。
+      const capacity = Math.max(0, baseCapacity-lostTodayHours);
+      const safeDay = lastSafeDay(
+        input.deadline,
+        input.remaining,
+        input.weekday,
+        input.weekend,
+        input.cap
+      );
+
+      const dayMs=24*60*60*1000;
+      const daysLeft=Math.ceil((input.deadline-input.now)/dayMs);
+      const minToday=minimumToday(
+        input.now,
+        input.remaining,
+        capacity,
+        input.weekday,
+        input.weekend,
+        input.cap
+      );
+      const risk=riskFor(input.remaining,capacity);
+
+      return {baseCapacity,capacity,safeDay,daysLeft,minToday,risk};
+    }
+
+    function renderTimeline(input,result){
+      const start = result.safeDay>input.now ? result.safeDay : input.now;
+      const phases=buildTimeline(start,input.deadline);
+      $('timeline').innerHTML='';
+
+      phases.forEach(p=>{
+        const item=document.createElement('div');
+        item.className='timeline-item';
+        item.innerHTML=`
+          <div class="timeline-date">${dateRangeLabel(p.start,p.end)}</div>
+          <div class="timeline-label">${p.label}</div>
+        `;
+        $('timeline').appendChild(item);
+      });
+
+      $('timelineMeta').textContent=`${input.progress}% 完成`;
+    }
+
+    function render(input,result,lostTodayHours=0){
+      $('taskTitle').textContent=input.task;
+      $('taskSubtitle').textContent=`目前完成 ${input.progress}% · 截止 ${new Intl.DateTimeFormat('zh-TW',{
+        year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
+      }).format(input.deadline)}`;
+
+      $('daysLeft').textContent=`${result.daysLeft} 天`;
+      $('capacity').textContent=`${result.capacity.toFixed(1)} h`;
+      $('safeDay').textContent=dateLabel(result.safeDay);
+      $('todayMin').textContent=`${result.minToday.toFixed(1)} h`;
+
+      $('statusBadge').textContent=result.risk.level;
+      $('riskBox').className=`risk-box ${result.risk.key}`;
+      $('riskLevel').textContent=result.risk.level;
+      $('riskReason').textContent=result.risk.reason;
+      $('riskFill').style.width=`${Math.min(100,result.risk.ratio*100)}%`;
+
+      renderTimeline(input,result);
+
+      $('emptyState').classList.add('hide');
+      $('resultBlock').classList.remove('hide');
+      $('timelineCard').classList.remove('hide');
+      $('simCard').classList.remove('hide');
+
+      if(lostTodayHours>0){
+        $('compareBlock').classList.remove('hide');
+        $('baseMinimum').textContent=`${appState.baseResult.minToday.toFixed(1)} 小時`;
+        $('delayedMinimum').textContent=`${result.minToday.toFixed(1)} 小時`;
+
+        $('simText').textContent=
+          `假設今天少完成 ${lostTodayHours} 小時，代表這段可用時間已流失；剩餘總容量由 ${result.baseCapacity.toFixed(1)} 小時降為 ${result.capacity.toFixed(1)} 小時，風險更新為「${result.risk.level.replace(/[🟢🟡🔴]\s?/,'')}」。`;
+      }else{
+        $('compareBlock').classList.add('hide');
+        $('simText').textContent=
+          `目前可用容量為 ${result.capacity.toFixed(1)} 小時。你可以模擬今天少做 1～2 小時，觀察風險與今日最低進度是否改變。`;
+      }
+    }
+
+    function clearError(){
+      $('errorBox').style.display='none';
+      $('errorBox').textContent='';
+    }
+
+    function showError(message){
+      $('errorBox').textContent=`⚠️ ${message}`;
+      $('errorBox').style.display='block';
+    }
+
+    function runBaseCalculation(){
+      clearError();
+      try{
+        const input=readInputs();
+        const result=compute(input,0);
+        appState.input=input;
+        appState.baseResult=result;
+        appState.activeDelay=0;
+        render(input,result,0);
+      }catch(err){
+        showError(err.message);
+      }
+    }
+
+    $('calcBtn').addEventListener('click',runBaseCalculation);
+
+    document.querySelectorAll('[data-delay]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(!appState.input) return;
+        const delay=Number(btn.dataset.delay);
+        appState.activeDelay=delay;
+        const result=compute(appState.input,delay);
+        render(appState.input,result,delay);
+      });
+    });
+
+    $('simReset').addEventListener('click',()=>{
+      if(!appState.input || !appState.baseResult) return;
+      appState.activeDelay=0;
+      render(appState.input,appState.baseResult,0);
+    });
+
+    $('sampleBtn').addEventListener('click',()=>{
+      const deadline=new Date();
+      deadline.setDate(deadline.getDate()+14);
+      deadline.setHours(23,59,0,0);
+
+      $('task').value='完成研究報告';
+      $('deadline').value=toLocalInputValue(deadline);
+      $('progress').value=20;
+      $('progressValue').textContent='20%';
+      $('hours').value=16;
+      $('weekday').value=2;
+      $('weekend').value=5;
+      $('dailyCap').value=6;
+      clearError();
+    });
+
+    $('resetBtn').addEventListener('click',()=>{
+      $('task').value='';
+      $('deadline').value='';
+      $('progress').value=20;
+      $('progressValue').textContent='20%';
+      $('hours').value='';
+      $('weekday').value=2;
+      $('weekend').value=5;
+      $('dailyCap').value=6;
+
+      appState.input=null;
+      appState.baseResult=null;
+      appState.activeDelay=0;
+
+      clearError();
+      $('resultBlock').classList.add('hide');
+      $('timelineCard').classList.add('hide');
+      $('simCard').classList.add('hide');
+      $('emptyState').classList.remove('hide');
+    });
+  </script>
+</body>
+</html>
