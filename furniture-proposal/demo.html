@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#254d3e">
+  <meta name="description" content="住進去之前：能實際拖曳、旋轉家具的 2D 使用空間預演器。在買家具前，看見抽屜與椅子需要的操作空間。">
+  <title>住進去之前｜家具使用空間預演器 Demo</title>
+  <link rel="stylesheet" href="demo.css">
+  <script src="room-engine.js" defer></script>
+  <script src="demo.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="demo.html" aria-label="住進去之前首頁"><span class="brand-icon" aria-hidden="true">⌑</span><span><span class="brand-title">住進去之前</span><span class="brand-sub">ROOM TO LIVE / INTERACTIVE DEMO</span></span></a>
+    <div class="header-actions"><a class="document-link" href="proposal.html">專案提案 ↗</a><button class="button secondary small" id="importBtn">匯入配置</button><button class="button primary small" id="exportBtn">匯出配置 ↓</button></div>
+  </header>
+  <main>
+    <section class="intro-strip"><div><span class="section-kicker">買之前，先讓它住進你家。</span><h1 class="intro-title">擺得下，也要用得順。</h1><p class="intro-copy">拖曳家具，打開抽屜，讓空間問題先出現在畫面上。</p></div><span class="status-pill warning" id="statusPill" role="status" aria-live="polite">正在檢查空間</span></section>
+    <div class="storage-warning" id="storageWarning" role="alert" hidden></div>
+    <div class="app-layout">
+      <aside class="left-panel" aria-label="房間與家具設定">
+        <section class="panel-section"><div class="panel-heading"><span class="section-kicker">01 / YOUR ROOM</span><h2>從你的房間開始</h2></div><form class="room-form" id="roomForm"><div class="field-row"><div class="field"><label for="roomWidth">寬度 cm</label><input class="input" id="roomWidth" type="number" min="40" max="2000" step="1" value="360" required></div><div class="field"><label for="roomDepth">深度 cm</label><input class="input" id="roomDepth" type="number" min="40" max="2000" step="1" value="300" required></div></div><button class="button secondary small" type="submit">更新房間尺寸</button></form><p class="helper">尺寸由你量測輸入，家具越界時會保留位置並提醒。</p></section>
+        <section class="panel-section"><div class="panel-heading"><span class="section-kicker">02 / ADD FURNITURE</span><h2>把家具放進來</h2></div><div class="library-grid"><button class="furniture-option" data-add="desk"><span class="furniture-icon" data-icon="desk"></span>書桌</button><button class="furniture-option" data-add="chair"><span class="furniture-icon" data-icon="chair"></span>椅子</button><button class="furniture-option" data-add="bed"><span class="furniture-icon" data-icon="bed"></span>床</button><button class="furniture-option" data-add="drawer"><span class="furniture-icon" data-icon="drawer"></span>抽屜櫃</button><button class="furniture-option" data-add="table"><span class="furniture-icon" data-icon="table"></span>餐桌</button></div><p class="library-note">加入後可選取，修改尺寸與使用空間。<span id="itemCount">3 / 50 件</span></p></section>
+        <section class="panel-section"><div class="panel-heading"><span class="section-kicker">03 / TRY THE STORY</span><h2>一分鐘，理解差別</h2></div><div class="sample-actions"><button class="button secondary small" id="beforeBtn">載入「抽屜卡住」範例</button><button class="button secondary small" id="afterBtn">載入「調整後」範例</button><button class="button ghost small" id="emptyBtn">建立空白房間</button></div><p class="helper">抽屜需拉出 60 cm，原本淨空只有 40 cm。看看移動後會發生什麼。</p></section>
+      </aside>
+
+      <section class="workbench" aria-label="互動房間平面圖">
+        <div class="canvas-toolbar"><div><span class="section-kicker">LIVE FLOOR PLAN</span><strong id="roomLabel">360 × 300 cm</strong></div><div class="view-controls"><button class="icon-btn" id="undoBtn" aria-label="復原上一個操作" title="復原 Ctrl/⌘ Z" disabled><span data-icon="undo"></span></button><button class="icon-btn" id="redoBtn" aria-label="重做上一個操作" title="重做" disabled><span data-icon="redo"></span></button><button class="button secondary small" id="pngBtn" title="下載目前平面圖">下載圖片 ↓</button></div></div>
+        <div class="canvas-toolbar canvas-subtoolbar"><div class="segmented" role="group" aria-label="所有家具的使用範圍"><button id="closedBtn" aria-pressed="false">全部收起</button><button class="active" id="openBtn" aria-pressed="true">預演使用</button></div><label class="toggle-row snap-toggle"><input id="snapGrid" type="checkbox" checked>貼齊 5 cm</label></div>
+        <div class="canvas-wrap"><svg id="roomSvg" xmlns="http://www.w3.org/2000/svg" viewBox="-60 -50 480 400" tabindex="0" role="group" aria-label="家具配置平面圖。點選或拖曳家具，方向鍵移動，Shift 加方向鍵移動 10 公分。"></svg></div>
+        <div class="canvas-footer"><div class="canvas-legend"><span><i class="legend-dot body"></i>家具</span><span><i class="legend-dot use"></i>使用空間</span><span><i class="legend-dot error"></i>阻擋／越界</span><span><i class="legend-dot warning"></i>同時使用</span></div><p>點選與拖曳 · 方向鍵微調 · Shift 加速</p></div>
+        <div class="object-list" id="objectList" aria-label="選取家具"></div>
+      </section>
+
+      <aside class="inspector" aria-label="選取家具的屬性">
+        <div class="panel-heading"><span class="section-kicker">FURNITURE DETAILS</span><h2 class="inspector-title" id="inspectorTitle">抽屜櫃</h2><span class="selected-type" id="selectedType">調整一件家具，重新想像空間。</span></div>
+        <div class="empty-inspector" id="emptyInspector" hidden><span data-icon="cursor"></span><p>點選畫面中的家具，<br>或從左側新增一件。</p></div>
+        <form class="property-form" id="propertyForm">
+          <div class="field full"><label for="itemName">家具名稱</label><input class="input" id="itemName" type="text" maxlength="60" required></div>
+          <div class="field-row"><div class="field"><label for="itemWidth">寬度 cm</label><input class="input" id="itemWidth" type="number" min="5" max="1000" step="1" required></div><div class="field"><label for="itemDepth">深度 cm</label><input class="input" id="itemDepth" type="number" min="5" max="1000" step="1" required></div></div>
+          <div class="field-row"><div class="field"><label for="itemX">位置 X cm</label><input class="input" id="itemX" type="number" min="-2000" max="4000" step="0.1" required></div><div class="field"><label for="itemY">位置 Y cm</label><input class="input" id="itemY" type="number" min="-2000" max="4000" step="0.1" required></div></div>
+          <div class="field full"><label for="itemClearance">前方使用空間 cm</label><input class="input" id="itemClearance" type="number" min="0" max="200" step="1" required><p class="helper">抽屜拉出、椅子後拉所需距離。設為 0 表示不額外預留。</p></div>
+          <div class="rotation-row"><span>開啟方向 <strong id="rotationValue">↓ 0°</strong></span><button class="button secondary small" id="rotateBtn" type="button"><span data-icon="rotate"></span>旋轉 90°</button></div>
+          <label class="toggle-row"><input id="itemActive" type="checkbox">這件家具正在使用中</label>
+          <p class="error-text" id="propertyError" role="alert" hidden></p><div class="property-actions"><button class="button primary" type="submit">套用修改</button><button class="button ghost danger small" id="deleteBtn" type="button">刪除家具</button></div>
+        </form>
+      </aside>
+
+      <section class="alerts-panel" aria-labelledby="alertsTitle"><div class="alerts-header"><div><span class="section-kicker">SPACE CHECK / 即時檢查</span><h2 id="alertsTitle">先看見，再調整。</h2></div><span id="alertsCount">1 個提醒</span></div><div class="alerts-list" id="alertsList" aria-live="polite" aria-atomic="true"></div></section>
+    </div>
+    <section class="guide-strip" aria-label="操作提示"><div class="guide-step"><span class="step-number">01</span><div><strong>先收起來</strong><p>只看家具本體，這個櫃子可以放入。</p></div></div><div class="guide-step"><span class="step-number">02</span><div><strong>再預演使用</strong><p>看見抽屜展開後，與床重疊 20 cm。</p></div></div><div class="guide-step"><span class="step-number">03</span><div><strong>把家具拖開</strong><p>或載入調整後範例，讓提醒即時消失。</p></div></div></section>
+    <footer class="footer-note"><span>2D 互動原型 · 尺寸以 cm 計算 · 配置儲存在此瀏覽器</span><p>結果依輸入尺寸與矩形使用範圍判斷；尚未考慮高度、門片、完整通道可達性與人體工學標準。</p></footer>
+  </main>
+  <input class="file-input" id="fileInput" type="file" accept="application/json,.json" hidden>
+  <dialog class="modal" id="confirmDialog" aria-labelledby="confirmTitle"><div class="modal-heading"><span class="section-kicker">A NEW ARRANGEMENT</span><h2 id="confirmTitle">載入新的配置？</h2></div><div class="modal-body"><p id="confirmText">會取代目前配置，你可以使用復原回到上一個版本。</p></div><div class="modal-actions"><button class="button secondary" id="cancelConfirm">取消</button><button class="button primary" id="acceptConfirm">確認載入</button></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText"></span><button class="toast-action" id="dismissToast" aria-label="關閉通知">✕</button></div>
+</body>
+</html>
